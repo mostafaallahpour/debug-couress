@@ -13,14 +13,14 @@ export interface TestDbEnvironment {
  * If targetPath or any resolved path matches the main clinic database, this throws immediately.
  */
 export function assertTestDbSafety(targetPath?: string): void {
-  const currentPath = targetPath || process.env.DATABASE_PATH || 'data/clinic.db';
+  const currentPath = targetPath || process.env.DATABASE_PATH || 'data/clinic-live-backup.db';
   const resolved = path.resolve(currentPath).toLowerCase();
 
   const forbiddenFiles = [
-    path.resolve(process.cwd(), 'data/clinic.db').toLowerCase(),
-    path.resolve(process.cwd(), '../data/clinic.db').toLowerCase(),
-    path.resolve('D:/Test1/clinic-management/backend/data/clinic.db').toLowerCase(),
-    path.resolve('D:/Test1/clinic-management/data/clinic.db').toLowerCase(),
+    path.resolve(process.cwd(), 'data/clinic-live-backup.db').toLowerCase(),
+    path.resolve(process.cwd(), '../data/clinic-live-backup.db').toLowerCase(),
+    path.resolve('D:/Test1/clinic-management/backend/data/clinic-live-backup.db').toLowerCase(),
+    path.resolve('D:/Test1/clinic-management/data/clinic-live-backup.db').toLowerCase(),
     path.resolve('D:/Test1/clinic-management/backend/clinic-live-backup.db').toLowerCase(),
     path.resolve('D:/Test1/clinic-management/backend/data/clinic-live-backup.db').toLowerCase()
   ];
@@ -56,7 +56,7 @@ export async function createIsolatedTestDb(prefix: string = 'test'): Promise<Tes
   const tempDbName = `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.db`;
   const tempDbPath = path.resolve(dataDir, tempDbName);
 
-  // Pre-check incoming DATABASE_PATH: if someone explicitly points to clinic.db, abort immediately
+  // Pre-check incoming DATABASE_PATH: if someone explicitly points to clinic-live-backup.db, abort immediately
   if (process.env.DATABASE_PATH) {
     assertTestDbSafety(process.env.DATABASE_PATH);
   }
@@ -89,7 +89,7 @@ export async function createIsolatedTestDb(prefix: string = 'test'): Promise<Tes
   // Post-migration column/table synchronization for runtime Drizzle models
   try {
     sqlite.exec('ALTER TABLE patient_practice_memberships ADD COLUMN phone TEXT;');
-  } catch (_) {}
+  } catch (_) { }
 
   try {
     sqlite.exec(`
@@ -113,15 +113,15 @@ export async function createIsolatedTestDb(prefix: string = 'test'): Promise<Tes
         created_at TEXT NOT NULL
       );
     `);
-  } catch (_) {}
+  } catch (_) { }
 
   try {
     sqlite.exec('ALTER TABLE payment_receipts ADD COLUMN deposit_id TEXT;');
-  } catch (_) {}
+  } catch (_) { }
 
   try {
     sqlite.exec("ALTER TABLE payment_receipts ADD COLUMN receipt_type TEXT DEFAULT 'normal';");
-  } catch (_) {}
+  } catch (_) { }
 
   // Run seed to populate doctors, base services, payment accounts, and clinic settings
   runSeed();
@@ -129,7 +129,7 @@ export async function createIsolatedTestDb(prefix: string = 'test'): Promise<Tes
   const cleanup = () => {
     try {
       sqlite.close();
-    } catch (_) {}
+    } catch (_) { }
 
     try {
       if (fs.existsSync(tempDbPath)) fs.unlinkSync(tempDbPath);

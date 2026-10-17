@@ -6,6 +6,6 @@ export default defineConfig({
   out: './src/db/migrations',
   dialect: 'sqlite',
   dbCredentials: {
-    url: path.join(process.cwd(), 'clinic-live-backup.db')
+    url: path.join(process.cwd(), 'data', 'clinic-live-backup.db')
   }
 });

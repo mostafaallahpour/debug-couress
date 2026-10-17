@@ -13,7 +13,7 @@ const backendDir = path.resolve(__dirname, '../..');
 // Ensure backend/.env is loaded before resolving environment variables
 dotenv.config({ path: path.join(backendDir, '.env') });
 
-const configuredDbPath = process.env.DATABASE_PATH || 'clinic-live-backup.db';
+const configuredDbPath = process.env.DATABASE_PATH || 'data/clinic-live-backup.db';
 
 function resolveDbPath(inputPath: string): string {
   if (path.isAbsolute(inputPath)) {
@@ -25,19 +25,7 @@ function resolveDbPath(inputPath: string): string {
   return path.resolve(backendDir, inputPath);
 }
 
-let fullDbPath = resolveDbPath(configuredDbPath);
-
-// Graceful fallback to existing live backup locations if not found at exact target (and not running in test mode)
-const isTestMode = process.env.NODE_ENV === 'test' || Boolean(process.env.TEST_DB_PATH) || (Boolean(process.env.DATABASE_PATH) && (process.env.DATABASE_PATH!.includes('test') || process.env.DATABASE_PATH!.includes('multi_checkout')));
-if (!isTestMode && !fs.existsSync(fullDbPath)) {
-  const directPath = path.resolve(backendDir, 'clinic-live-backup.db');
-  const dataPath = path.resolve(backendDir, 'data', 'clinic-live-backup.db');
-  if (fs.existsSync(directPath)) {
-    fullDbPath = directPath;
-  } else if (fs.existsSync(dataPath)) {
-    fullDbPath = dataPath;
-  }
-}
+const fullDbPath = resolveDbPath(configuredDbPath);
 
 // Ensure database directory exists
 const dbDir = path.dirname(fullDbPath);

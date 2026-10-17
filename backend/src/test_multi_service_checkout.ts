@@ -14,7 +14,7 @@ async function runMultiServiceCheckoutTests() {
   const { eq, and } = await import('drizzle-orm');
   const { financialObligations, paymentReceipts } = await import('./db/schema/finance');
   const { appointments } = await import('./db/schema/appointments');
-  const { deposits, depositHistory } = await import('./db/schema/deposits');
+  const { deposits } = await import('./db/schema/deposits');
   const { doctors } = await import('./db/schema/doctors');
   const { services } = await import('./db/schema/services');
   const { paymentAccounts } = await import('./db/schema/paymentAccounts');
