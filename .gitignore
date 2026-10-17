@@ -27,12 +27,12 @@ dist-ssr
 backend/.env
 
 # SQLite runtime database
-backend/data/*.db
-backend/data/*.db-shm
-backend/data/*.db-wal
+#backend/data/*.db
+#backend/data/*.db-shm
+#backend/data/*.db-wal
 
 # Local database backups
-backend/backups/*
+#backend/backups/*
 
 # Generated JavaScript duplicates
 src/data/mockData.js
