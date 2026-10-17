@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useClinic } from '../../context/ClinicContext';
-import { getTodayJalaliDate, toFarsiDigits } from '../../utils/persianUtils';
-import { 
-  validatePersianName, 
-  validateIranianMobile, 
-  validateIranianNationalId, 
+import { toFarsiDigits } from '../../utils/persianUtils';
+import {
+  validatePersianName,
+  validateIranianMobile,
+  validateIranianNationalId,
   normalizeDigits,
   checkDuplicatePatientInPractice,
   type DuplicatePatientCheckResult
@@ -52,7 +52,7 @@ export const NewPatientModal: React.FC = () => {
       gender,
       birthDate,
       primaryPractice,
-      memberships: [{ practice: primaryPractice, physicalFileNumber: String(100 + patients.length + 1), joinedAt: getTodayJalaliDate() }],
+      memberships: [],
       allergies: allergiesStr ? allergiesStr.split(',').map(s => s.trim()) : [],
       medicalNotes,
       emergencyContact: {
@@ -112,7 +112,7 @@ export const NewPatientModal: React.FC = () => {
   return (
     <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-150">
-        
+
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <h3 className="text-sm font-bold text-slate-800">تشکیل پرونده الکترونیک بیمار جدید</h3>
           <button onClick={() => setIsNewPatientOpen(false)} className="text-slate-400 hover:text-slate-600">
@@ -128,7 +128,7 @@ export const NewPatientModal: React.FC = () => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-3 text-xs">
-          
+
           <div>
             <label className="block font-bold text-slate-700 mb-1">نام و نام خانوادگی بیمار:</label>
             <input

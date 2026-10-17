@@ -51,7 +51,11 @@ const createPatientSchema = z.object({
     relation: z.string().optional().nullable().transform(val => val ? sanitizeFreeText(val, 100) : val)
   }).optional().nullable(),
   profileStatus: z.enum(['incomplete', 'completed', 'temp']).optional().default('completed'),
-  customFileNumber: z.string().optional().nullable().transform(val => val ? normalizeDigits(val.trim()) : val),
+  customFileNumber: z.string().optional().nullable().transform(val => {
+    if (!val) return undefined;
+    const norm = normalizeDigits(val.trim());
+    return norm.length > 0 ? norm : undefined;
+  }),
   memberships: z.array(z.object({
     practice: z.enum(['aesthetic', 'dental']),
     physicalFileNumber: z.string().optional(),
@@ -63,7 +67,11 @@ const updatePatientSchema = createPatientSchema.partial();
 
 const addMembershipSchema = z.object({
   practice: z.enum(['aesthetic', 'dental']),
-  customFileNumber: z.string().optional().nullable()
+  customFileNumber: z.string().optional().nullable().transform(val => {
+    if (!val) return undefined;
+    const norm = normalizeDigits(val.trim());
+    return norm.length > 0 ? norm : undefined;
+  })
 });
 
 const updatePhysicalFileSchema = z.object({
@@ -91,19 +99,8 @@ function getNextGlobalFileNumber(): string {
   return `CL-${maxNum + 1}`;
 }
 
-function getNextPhysicalFileNumber(practice: 'aesthetic' | 'dental'): string {
-  const memberships = db.select().from(patientPracticeMemberships).where(eq(patientPracticeMemberships.practice, practice)).all();
-  let maxNum = 100;
-  for (const m of memberships) {
-    if (m.physicalFileNumber) {
-      const parsed = parseInt(m.physicalFileNumber.replace(/\D/g, ''), 10);
-      if (!isNaN(parsed) && parsed > maxNum) {
-        maxNum = parsed;
-      }
-    }
-  }
-  return String(maxNum + 1);
-}
+export { getNextPhysicalFileNumber } from './patientNumberService';
+import { getNextPhysicalFileNumber } from './patientNumberService';
 
 function formatPatientData(p: typeof patients.$inferSelect, memberships: (typeof patientPracticeMemberships.$inferSelect)[]) {
   let allergiesArr: string[] = [];
@@ -266,7 +263,7 @@ export async function patientsRouter(fastify: FastifyInstance) {
       const body = parseResult.data;
       const targetPractice = body.primaryPractice || 'aesthetic';
 
-      // Atomic DB Transaction
+      // Atomic DB Transaction with IMMEDIATE lock to prevent concurrency races
       let createdPatientId = '';
       let errorResponse: { statusCode: number; payload: any } | null = null;
 
@@ -330,7 +327,7 @@ export async function patientsRouter(fastify: FastifyInstance) {
             joinedAt: todayStr || '1405-01-01'
           })
           .run();
-      })();
+      }).immediate();
 
       if (errorResponse) {
         return reply.status((errorResponse as any).statusCode).send((errorResponse as any).payload);
@@ -432,51 +429,66 @@ export async function patientsRouter(fastify: FastifyInstance) {
       }
 
       const { practice, customFileNumber } = parseResult.data;
+      let errorResponse: { statusCode: number; payload: any } | null = null;
 
-      // Check duplicate membership for same practice
-      const existingMem = db.select()
-        .from(patientPracticeMemberships)
-        .where(and(
-          eq(patientPracticeMemberships.patientId, id),
-          eq(patientPracticeMemberships.practice, practice)
-        ))
-        .get();
+      sqlite.transaction(() => {
+        // Check duplicate membership for same practice
+        const existingMem = db.select()
+          .from(patientPracticeMemberships)
+          .where(and(
+            eq(patientPracticeMemberships.patientId, id),
+            eq(patientPracticeMemberships.practice, practice)
+          ))
+          .get();
 
-      if (existingMem) {
-        return reply.status(409).send({
-          success: false,
-          error: { code: 'DUPLICATE_MEMBERSHIP', message: 'این بیمار از قبل در این مطب دارای پرونده (عضویت) می‌باشد و نیازی به ایجاد پرونده جدید ندارد.' }
-        });
+        if (existingMem) {
+          errorResponse = {
+            statusCode: 409,
+            payload: {
+              success: false,
+              error: { code: 'DUPLICATE_MEMBERSHIP', message: 'این بیمار از قبل در این مطب دارای پرونده (عضویت) می‌باشد و نیازی به ایجاد پرونده جدید ندارد.' }
+            }
+          };
+          return;
+        }
+
+        const physicalNum = customFileNumber || getNextPhysicalFileNumber(practice);
+
+        // Check unique constraint for physical file number in practice
+        const occupiedMem = db.select()
+          .from(patientPracticeMemberships)
+          .where(and(
+            eq(patientPracticeMemberships.practice, practice),
+            eq(patientPracticeMemberships.physicalFileNumber, physicalNum)
+          ))
+          .get();
+
+        if (occupiedMem) {
+          errorResponse = {
+            statusCode: 409,
+            payload: {
+              success: false,
+              error: { code: 'DUPLICATE_FILE_NUMBER', message: `شماره پرونده فیزیکی ${physicalNum} در این مطب قبلاً استفاده شده است.` }
+            }
+          };
+          return;
+        }
+
+        const todayStr = toStandardJalaliDbDate(new Date().toLocaleDateString('fa-IR'));
+
+        db.insert(patientPracticeMemberships)
+          .values({
+            patientId: id,
+            practice: practice,
+            physicalFileNumber: physicalNum,
+            joinedAt: todayStr || '1405-01-01'
+          })
+          .run();
+      }).immediate();
+
+      if (errorResponse) {
+        return reply.status((errorResponse as any).statusCode).send((errorResponse as any).payload);
       }
-
-      const physicalNum = customFileNumber || getNextPhysicalFileNumber(practice);
-
-      // Check unique constraint for physical file number in practice
-      const occupiedMem = db.select()
-        .from(patientPracticeMemberships)
-        .where(and(
-          eq(patientPracticeMemberships.practice, practice),
-          eq(patientPracticeMemberships.physicalFileNumber, physicalNum)
-        ))
-        .get();
-
-      if (occupiedMem) {
-        return reply.status(409).send({
-          success: false,
-          error: { code: 'DUPLICATE_FILE_NUMBER', message: `شماره پرونده فیزیکی ${physicalNum} در این مطب قبلاً استفاده شده است.` }
-        });
-      }
-
-      const todayStr = toStandardJalaliDbDate(new Date().toLocaleDateString('fa-IR'));
-
-      db.insert(patientPracticeMemberships)
-        .values({
-          patientId: id,
-          practice: practice,
-          physicalFileNumber: physicalNum,
-          joinedAt: todayStr || '1405-01-01'
-        })
-        .run();
 
       const updatedMems = db.select().from(patientPracticeMemberships).where(eq(patientPracticeMemberships.patientId, id)).all();
 

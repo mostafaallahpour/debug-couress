@@ -35,19 +35,7 @@ const createAppointmentSchema = z.object({
 
 const updateAppointmentSchema = createAppointmentSchema.partial();
 
-function getNextPhysicalFileNumber(practice: 'aesthetic' | 'dental'): string {
-  const memberships = db.select().from(patientPracticeMemberships).where(eq(patientPracticeMemberships.practice, practice)).all();
-  let maxNum = 100;
-  for (const m of memberships) {
-    if (m.physicalFileNumber) {
-      const parsed = parseInt(m.physicalFileNumber.replace(/\D/g, ''), 10);
-      if (!isNaN(parsed) && parsed > maxNum) {
-        maxNum = parsed;
-      }
-    }
-  }
-  return String(maxNum + 1);
-}
+import { getNextPhysicalFileNumber } from '../patients/patientNumberService';
 
 function formatAppointmentData(
   apt: typeof appointments.$inferSelect,

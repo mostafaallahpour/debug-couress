@@ -12,6 +12,7 @@ import {
   normalizeDigits,
   normalizePersianChars
 } from '../../utils/validation';
+import { getNextPhysicalFileNumber } from '../patients/patientNumberService';
 
 // Ensure tables exist
 function ensureImportTablesExist() {
@@ -806,7 +807,7 @@ if (duplicateReason) {
           if (isResolvedMerged) {
             // Option 1: Merged Same Person -> Add new Practice Membership to existing Patient ID
             const finalPtId = targetPtId!;
-            const physicalNum = r.normalizedPc || getNextGlobalFileNumber();
+            const physicalNum = r.normalizedPc || getNextPhysicalFileNumber(r.practice as 'aesthetic' | 'dental');
 
             // Check if (practice + physicalFileNumber) ALREADY exists in DB
             const existingMemForPc = db.select()
@@ -881,7 +882,7 @@ if (duplicateReason) {
             }
 
           } else if (isResolvedSeparate) {
-            const physicalNum = r.normalizedPc || '101';
+            const physicalNum = r.normalizedPc || getNextPhysicalFileNumber(r.practice as 'aesthetic' | 'dental');
 
             // Check if (practice + physicalFileNumber) ALREADY exists in DB
             const existingMemForPc = db.select()

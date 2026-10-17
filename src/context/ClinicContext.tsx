@@ -264,7 +264,7 @@ interface ClinicContextType {
   addPaymentAccount: (account: Omit<PaymentAccount, 'id'>) => void;
   updatePaymentAccount: (id: string, account: Omit<PaymentAccount, 'id'>) => void;
   getPracticePaymentAccounts: (practice: 'aesthetic' | 'dental') => string[];
-  addPatient: (patientData: Omit<Patient, 'id' | 'fileNumber' | 'createdAt' | 'balance'>) => Promise<Patient>;
+  addPatient: (patientData: Omit<Patient, 'id' | 'fileNumber' | 'createdAt' | 'balance'> & { customFileNumber?: string }) => Promise<Patient>;
   addExpense: (expenseData: Omit<ClinicExpense, 'id'>) => void;
   addService: (serviceData: Omit<ServiceItem, 'id'>) => void;
   updateService: (id: string, serviceData: Partial<ServiceItem>) => void;
@@ -789,10 +789,10 @@ export const ClinicProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  const addPatient = async (patientData: Omit<Patient, 'id' | 'fileNumber' | 'createdAt' | 'balance'>): Promise<Patient> => {
+  const addPatient = async (patientData: Omit<Patient, 'id' | 'fileNumber' | 'createdAt' | 'balance'> & { customFileNumber?: string }): Promise<Patient> => {
     try {
       const targetPractice = patientData.primaryPractice || 'aesthetic';
-      const customNum = patientData.memberships?.[0]?.physicalFileNumber;
+      const customNum = patientData.customFileNumber?.trim() || undefined;
 
       const created = await patientsApi.createPatient({
         ...patientData,
